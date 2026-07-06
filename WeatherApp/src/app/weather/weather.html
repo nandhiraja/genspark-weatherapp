@@ -1,0 +1,186 @@
+<div class="weather-dashboard">
+  <!-- Header -->
+  <header class="dashboard-header">
+    <div class="header-content">
+      <div class="header-left">
+        <div class="logo-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="32" height="32">
+            <path d="M12 2a5 5 0 1 1-4.546 7.1A4.5 4.5 0 0 0 3 13.5C3 16 5 18 7.5 18H18a4 4 0 0 0 .5-7.965A5 5 0 0 1 12 2zm0 2a3 3 0 0 1 2.95 3.55A4 4 0 0 0 14 7.5V7H12V5z"/>
+          </svg>
+        </div>
+        <div>
+          <h1 class="header-title">Weather Forecast</h1>
+          <p class="header-subtitle">Live Weather Dashboard</p>
+        </div>
+      </div>
+      <div class="header-right">
+        <button
+          class="refresh-btn"
+          (click)="loadWeather()"
+          [disabled]="loading()"
+          id="refresh-button"
+          title="Refresh weather data"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            [class.spinning]="loading()"
+            width="18"
+            height="18"
+          >
+            <polyline points="23 4 23 10 17 10"></polyline>
+            <polyline points="1 20 1 14 7 14"></polyline>
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+          </svg>
+          <span>{{ loading() ? 'Refreshing...' : 'Refresh' }}</span>
+        </button>
+        @if (lastUpdated()) {
+          <p class="last-updated">
+            Updated: {{ lastUpdated() | date: 'shortTime' }}
+          </p>
+        }
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="dashboard-main">
+
+    <!-- Loading State -->
+    @if (loading()) {
+      <div class="loading-container" id="loading-indicator">
+        <div class="spinner-wrapper">
+          <div class="spinner"></div>
+          <div class="spinner-ring"></div>
+        </div>
+        <p class="loading-text">Loading weather data...</p>
+        <p class="loading-sub">Fetching the latest forecasts</p>
+      </div>
+    }
+
+    <!-- Error State -->
+    @if (error() && !loading()) {
+      <div class="error-container" id="error-message">
+        <div class="error-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="48" height="48">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="8" x2="12" y2="12"></line>
+            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+          </svg>
+        </div>
+        <h3 class="error-title">Unable to Load Data</h3>
+        <p class="error-message">{{ error() }}</p>
+        <button class="retry-btn" (click)="loadWeather()" id="retry-button">
+          Try Again
+        </button>
+      </div>
+    }
+
+    <!-- Data State -->
+    @if (!loading() && !error() && forecasts().length > 0) {
+      <!-- Stats Bar -->
+      <div class="stats-bar" id="forecast-count">
+        <div class="stat-card">
+          <span class="stat-value">{{ forecasts().length }}</span>
+          <span class="stat-label">Total Forecast Records</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-value hot-count">
+            {{ forecasts()[$any(forecasts()).length - 1]?.temperatureC }}°C
+          </span>
+          <span class="stat-label">Latest Temp</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-value">
+            {{ forecasts()[0]?.summary }}
+          </span>
+          <span class="stat-label">Today's Summary</span>
+        </div>
+      </div>
+
+      <!-- Legend -->
+      <div class="legend">
+        <div class="legend-item">
+          <span class="legend-dot hot"></span>
+          <span>Temperature &gt; 30°C (Hot)</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-dot normal"></span>
+          <span>Normal temperature</span>
+        </div>
+      </div>
+
+      <!-- Table -->
+      <div class="table-container">
+        <table class="forecast-table" id="weather-table">
+          <thead>
+            <tr>
+              <th scope="col">#</th>
+              <th scope="col">Date</th>
+              <th scope="col">
+                <span>Temp (°C)</span>
+              </th>
+              <th scope="col">
+                <span>Temp (°F)</span>
+              </th>
+              <th scope="col">Summary</th>
+              <th scope="col">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (forecast of forecasts(); track forecast.date; let i = $index) {
+              <tr
+                [class.hot-row]="isHot(forecast.temperatureC)"
+                [class.normal-row]="!isHot(forecast.temperatureC)"
+                class="table-row"
+              >
+                <td class="row-num">{{ i + 1 }}</td>
+                <td class="date-cell">{{ formatDate(forecast.date) }}</td>
+                <td class="temp-cell">
+                  <span class="temp-badge" [class.hot-badge]="isHot(forecast.temperatureC)">
+                    {{ forecast.temperatureC }}°C
+                  </span>
+                </td>
+                <td class="temp-cell">
+                  <span class="temp-badge-f">
+                    {{ forecast.temperatureF }}°F
+                  </span>
+                </td>
+                <td class="summary-cell">
+                  <span class="summary-chip">{{ forecast.summary }}</span>
+                </td>
+                <td class="status-cell">
+                  @if (isHot(forecast.temperatureC)) {
+                    <span class="status-badge hot-status">🔥 Hot</span>
+                  } @else if (forecast.temperatureC > 20) {
+                    <span class="status-badge warm-status">☀️ Warm</span>
+                  } @else if (forecast.temperatureC > 10) {
+                    <span class="status-badge cool-status">🌤️ Cool</span>
+                  } @else {
+                    <span class="status-badge cold-status">❄️ Cold</span>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+
+    <!-- Empty State -->
+    @if (!loading() && !error() && forecasts().length === 0) {
+      <div class="empty-container">
+        <p class="empty-text">No forecast data available.</p>
+      </div>
+    }
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="dashboard-footer">
+    <p>Weather Forecast Dashboard &copy; 2026 &mdash; Powered by Azure Weather API</p>
+  </footer>
+</div>
