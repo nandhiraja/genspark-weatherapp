@@ -6,11 +6,16 @@ on:
       - main
 
 permissions:
-  contents: write
+  contents: read
+  pages: write
+  id-token: write
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
       # 1. Checkout code
@@ -21,24 +26,32 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
           cache: 'npm'
           cache-dependency-path: WeatherApp/package-lock.json
 
-      # 3. Install dependencies
+      # 3. Configure GitHub Pages
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      # 4. Install dependencies
       - name: Install dependencies
         working-directory: WeatherApp
         run: npm ci
 
-      # 4. Build Angular application
+      # 5. Build Angular application
       - name: Build Angular application
         working-directory: WeatherApp
         run: npm run build -- --base-href "/${{ github.event.repository.name }}/"
 
-      # 5. Deploy to GitHub Pages
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v4
+      # 6. Upload build artifact
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./WeatherApp/dist/WeatherApp/browser
-          force_orphan: true
+          path: ./WeatherApp/dist/WeatherApp/browser
+
+      # 7. Deploy to GitHub Pages
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
